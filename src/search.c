@@ -374,6 +374,13 @@ int findnextstr(const char *needle, bool whole_word_only, bool have_region,
 /* Ask what to search for and then go looking for it. */
 void do_search(void)
 {
+#ifndef DISABLE_HISTORIES
+    /* If nothing was searched for yet during this run of nano, but
+     * there is a search history, take the most recent item. */
+    if (*last_search == '\0' && searchbot->prev != NULL)
+	last_search = mallocstrcpy(last_search, searchbot->prev->data);
+#endif
+
     int i = search_init(FALSE, FALSE);
 
     if (i == -1)	/* Cancelled, or some other exit reason. */
