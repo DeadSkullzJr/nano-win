@@ -38,7 +38,12 @@
 #endif
 #include <getopt.h>
 #ifndef NANO_TINY
+#ifndef _WIN32
 #include <sys/ioctl.h>
+#endif
+#endif
+#ifdef _WIN32
+#include <windows.h>
 #endif
 
 #ifdef ENABLE_MOUSE
@@ -666,8 +671,10 @@ void die_save_file(const char *die_filename, struct stat *die_stat)
      * fast as possible. */
     if (die_stat) {
 	IGNORE_CALL_RESULT(chmod(targetname, die_stat->st_mode));
+#ifndef _WIN32
 	IGNORE_CALL_RESULT(chown(targetname, die_stat->st_uid,
 						die_stat->st_gid));
+#endif
     }
 #endif
 
@@ -1117,7 +1124,9 @@ RETSIGTYPE cancel_stdin_pager(int signal)
 void stdin_pager(void)
 {
     FILE *stream;
+#ifndef _WIN32
     int thetty;
+#endif
 
     endwin();
 
@@ -1144,7 +1153,11 @@ void stdin_pager(void)
     }
 
     /* Open standard input. */
+#ifndef _WIN32
     stream = fopen("/dev/stdin", "rb");
+#else
+    stream = _fdopen(0, "rb");
+#endif
     if (stream == NULL) {
 	int errnumber = errno;
 
@@ -1159,12 +1172,18 @@ void stdin_pager(void)
     read_file(stream, 0, "stdin", TRUE, FALSE);
     openfile->edittop = openfile->fileage;
 
+#ifndef _WIN32
     /* Reconnect the tty as the input source. */
     thetty = open("/dev/tty", O_RDONLY);
     if (!thetty)
 	die(_("Couldn't reopen stdin from keyboard, sorry\n"));
     dup2(thetty, 0);
     close(thetty);
+#else
+    stream = freopen("CONIN$", "r", stdin);
+    if (!stream)
+	die(_("Couldn't reopen stdin from keyboard, sorry\n"));
+#endif
 
     if (!pager_input_aborted)
 	tcgetattr(0, &oldterm);
@@ -1194,10 +1213,12 @@ void signal_init(void)
 #endif
     sigaction(SIGTERM, &act, NULL);
 
+#ifdef SIGWINCH
 #ifndef NANO_TINY
     /* Trap SIGWINCH because we want to handle window resizes. */
     act.sa_handler = handle_sigwinch;
     sigaction(SIGWINCH, &act, NULL);
+#endif
 #endif
 
     if (ISSET(SUSPEND)) {
@@ -1230,6 +1251,7 @@ RETSIGTYPE handle_hupterm(int signal)
 /* Handler for SIGTSTP (suspend). */
 RETSIGTYPE do_suspend(int signal)
 {
+#ifndef _WIN32
 #ifdef ENABLE_MOUSE
     disable_mouse_support();
 #endif
@@ -1248,6 +1270,7 @@ RETSIGTYPE do_suspend(int signal)
 #ifdef SIGSTOP
     /* Do what mutt does: send ourselves a SIGSTOP. */
     kill(0, SIGSTOP);
+#endif
 #endif
 }
 
@@ -1292,6 +1315,7 @@ RETSIGTYPE handle_sigwinch(int signal)
 /* Reinitialize and redraw the screen completely. */
 void regenerate_screen(void)
 {
+#ifndef _WIN32
     const char *tty = ttyname(0);
     int fd, result = 0;
     struct winsize win;
@@ -1316,6 +1340,7 @@ void regenerate_screen(void)
 #ifdef REDEFINING_MACROS_OK
     COLS = win.ws_col;
     LINES = win.ws_row;
+#endif
 #endif
     editwincols = COLS - margin;
 
@@ -1347,11 +1372,13 @@ void regenerate_screen(void)
  * unblock SIGWINCH so any pending ones can be dealt with. */
 void allow_sigwinch(bool allow)
 {
+#ifndef _WIN32
     sigset_t winch;
 
     sigemptyset(&winch);
     sigaddset(&winch, SIGWINCH);
     sigprocmask(allow ? SIG_UNBLOCK : SIG_BLOCK, &winch, NULL);
+#endif
 }
 
 /* Handle the global toggle specified in flag. */
@@ -1437,6 +1464,18 @@ void disable_signals(void)
     term.c_lflag &= ~ISIG;
     tcsetattr(0, TCSANOW, &term);
 #endif
+#ifdef _WIN32
+    HANDLE console;
+    console = CreateFile(TEXT("CONIN$"), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    if (console != INVALID_HANDLE_VALUE) {
+	DWORD mode;
+	if (GetConsoleMode(console, &mode)) {
+	    mode &= ~ENABLE_PROCESSED_INPUT;
+	    SetConsoleMode(console, mode);
+	}
+	CloseHandle(console);
+    }
+#endif
 }
 
 #ifndef NANO_TINY
@@ -1450,6 +1489,18 @@ void enable_signals(void)
     tcgetattr(0, &term);
     term.c_lflag |= ISIG;
     tcsetattr(0, TCSANOW, &term);
+#endif
+#ifdef _WIN32
+    HANDLE console;
+    console = CreateFile(TEXT("CONIN$"), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    if (console != INVALID_HANDLE_VALUE) {
+	DWORD mode;
+	if (GetConsoleMode(console, &mode)) {
+	    mode |= ENABLE_PROCESSED_INPUT;
+	    SetConsoleMode(console, mode);
+	}
+	CloseHandle(console);
+    }
 #endif
 }
 #endif

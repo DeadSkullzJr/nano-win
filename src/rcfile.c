@@ -36,6 +36,10 @@
 #define RCFILE_NAME ".nanorc"
 #endif
 
+#ifndef ALL_USERS_NANORC
+#define ALL_USERS_NANORC "/../All Users/nanorc"
+#endif
+
 static const rcoption rcopts[] = {
     {"boldtext", BOLD_TEXT},
 #ifdef ENABLE_LINENUMBERS
@@ -1266,7 +1270,18 @@ void parse_one_nanorc(void)
 /* First read the system-wide rcfile, then the user's rcfile. */
 void do_rcfiles(void)
 {
+    get_homedir();
+
+#ifdef _WIN32
+	if (homedir == NULL) {
+		nanorc = mallocstrcpy(nanorc, "C:/Windows/nanorc");
+	} else {
+		nanorc = charalloc(strlen(homedir) + strlen(ALL_USERS_NANORC) + 1);
+		sprintf(nanorc, "%s%s", homedir, ALL_USERS_NANORC);
+	}
+#else
     nanorc = mallocstrcpy(nanorc, SYSCONFDIR "/nanorc");
+#endif
 
     /* Process the system-wide nanorc. */
     parse_one_nanorc();
@@ -1277,8 +1292,6 @@ void do_rcfiles(void)
     if (geteuid() == NANO_ROOT_UID)
 	SET(NO_WRAP);
 #endif
-
-    get_homedir();
 
     if (homedir == NULL)
 	rcfile_error(N_("I can't find my home directory!  Wah!"));
