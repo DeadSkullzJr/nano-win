@@ -112,6 +112,13 @@ int search_init(bool replacing, bool use_answer)
 	return 0;
     }
 
+#ifndef DISABLE_HISTORIES
+    /* If nothing was searched for yet during this run of nano, but
+     * there is a search history, take the most recent item. */
+    if (*last_search == '\0' && searchbot->prev != NULL)
+	last_search = mallocstrcpy(last_search, searchbot->prev->data);
+#endif
+
     /* We display the search prompt below.  If the user types a partial
      * search string and then Replace or a toggle, we will return to
      * do_search() or do_replace() and be called again.  In that case,
