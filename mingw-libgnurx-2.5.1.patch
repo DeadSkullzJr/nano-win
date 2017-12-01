@@ -1,0 +1,100 @@
+diff --git a/mingw-libgnurx-2.5.1/Makefile.in b/mingw-libgnurx-2.5.1/Makefile.in
+index 6397bf18..61fe0673 100644
+--- a/mingw-libgnurx-2.5.1/Makefile.in
++++ b/mingw-libgnurx-2.5.1/Makefile.in
+@@ -48,7 +48,7 @@ OBJECTS = regex.o
+ MSVCLIB = lib
+ 
+ BINDIST_FILES = libgnurx-$(DLLVERSION).dll
+-DEVDIST_FILES = libgnurx.dll.a libregex.a @GNURX_LIB@
++DEVDIST_FILES = libgnurx.dll.a libgnurx.a @GNURX_LIB@
+ SRCDIST_FILES = ${srcdir}/configure ${srcdir}/configure.ac ${srcdir}/aclocal.m4 \
+   ${srcdir}/pkgid.m4 ${srcdir}/Makefile.in ${srcdir}/README ${srcdir}/COPYING.LIB \
+   $(SOURCES) $(wildcard ${srcdir}/*.[37]) ${srcdir}/ChangeLog
+@@ -56,7 +56,7 @@ SRCDIST_FILES = ${srcdir}/configure ${srcdir}/configure.ac ${srcdir}/aclocal.m4
+ ZIPCMD = @ZIPCMD@
+ ZIPEXT = @ZIPEXT@
+ 
+-all: libgnurx-$(DLLVERSION).dll libgnurx.dll.a libregex.a @GNURX_LIB@
++all: libgnurx-$(DLLVERSION).dll libgnurx.dll.a libgnurx.a @GNURX_LIB@
+ 
+ Makefile: config.status Makefile.in
+ 	./config.status
+@@ -66,11 +66,17 @@ config.status: configure
+ 
+ $(OBJECTS): Makefile
+ 
+-libgnurx-$(DLLVERSION).dll libgnurx.dll.a: $(OBJECTS)
++libgnurx-$(DLLVERSION).dll: $(OBJECTS)
+ 	$(CC) $(CFLAGS) -shared -o libgnurx-$(DLLVERSION).dll $(LDFLAGS) $(OBJECTS)
+ 
+-libregex.a: libgnurx.dll.a
+-	cp -p libgnurx.dll.a $@
++libgnurx.dll.a: libgnurx-$(DLLVERSION).dll
++
++#libgnurx.a: libgnurx.dll.a
++#	cp -p libgnurx.dll.a $@
++
++libgnurx.a: $(OBJECTS)
++	$(AR) -rcus $@ $(OBJECTS)
++	ranlib $@
+ 
+ gnurx.lib: libgnurx-$(DLLVERSION).dll
+ 	$(MSVCLIB) -def:libgnurx.def -out:gnurx.lib
+diff --git a/mingw-libgnurx-2.5.1/regcomp.c b/mingw-libgnurx-2.5.1/regcomp.c
+index 78a1218c..f4fecd05 100644
+--- a/mingw-libgnurx-2.5.1/regcomp.c
++++ b/mingw-libgnurx-2.5.1/regcomp.c
+@@ -2510,7 +2510,7 @@ parse_dup_op (bin_tree_t *elem, re_string_t *regexp, re_dfa_t *dfa,
+     old_tree = NULL;
+ 
+   if (elem->token.type == SUBEXP)
+-    postorder (elem, mark_opt_subexp, (void *) (long) elem->token.opr.idx);
++    postorder (elem, mark_opt_subexp, (void *) (intptr_t) elem->token.opr.idx);
+ 
+   tree = create_tree (dfa, elem, NULL, (end == -1 ? OP_DUP_ASTERISK : OP_ALT));
+   if (BE (tree == NULL, 0))
+@@ -3722,7 +3722,7 @@ create_token_tree (re_dfa_t *dfa, bin_tree_t *left, bin_tree_t *right,
+ static reg_errcode_t
+ mark_opt_subexp (void *extra, bin_tree_t *node)
+ {
+-  int idx = (int) (long) extra;
++  int idx = (int) (intptr_t) extra;
+   if (node->token.type == SUBEXP && node->token.opr.idx == idx)
+     node->token.opt_subexp = 1;
+ 
+diff --git a/mingw-libgnurx-2.5.1/regex.c b/mingw-libgnurx-2.5.1/regex.c
+index d2d4f28e..504a13b6 100644
+--- a/mingw-libgnurx-2.5.1/regex.c
++++ b/mingw-libgnurx-2.5.1/regex.c
+@@ -57,7 +57,9 @@
+    #undefs RE_DUP_MAX and sets it to the right value.  */
+ #include <limits.h>
+ 
+-#include <regex.h>
++/* Changed from <> to "" by LH_Mouse on 2014-07-09. */
++/* #include <regex.h> */
++#include "regex.h"
+ #include "regex_internal.h"
+ 
+ #include "regex_internal.c"
+diff --git a/mingw-libgnurx-2.5.1/regex_internal.h b/mingw-libgnurx-2.5.1/regex_internal.h
+index b0c4d355..f6619d8f 100644
+--- a/mingw-libgnurx-2.5.1/regex_internal.h
++++ b/mingw-libgnurx-2.5.1/regex_internal.h
+@@ -420,6 +420,7 @@ static unsigned int re_string_context_at (const re_string_t *input, int idx,
+ #define re_string_skip_bytes(pstr,idx) ((pstr)->cur_idx += (idx))
+ #define re_string_set_index(pstr,idx) ((pstr)->cur_idx = (idx))
+ 
++#ifndef alloca
+ #ifdef __GNUC__
+ # define alloca(size)   __builtin_alloca (size)
+ # define HAVE_ALLOCA 1
+@@ -430,6 +431,7 @@ static unsigned int re_string_context_at (const re_string_t *input, int idx,
+ #else
+ # error No alloca()
+ #endif
++#endif
+ 
+ #ifndef _LIBC
+ # if HAVE_ALLOCA

@@ -1,0 +1,37 @@
+diff --git a/ncurses-6.0/ncurses/base/lib_initscr.c b/ncurses-6.0/ncurses/base/lib_initscr.c
+index 0e8a2971..e0645500 100644
+--- a/ncurses-6.0/ncurses/base/lib_initscr.c
++++ b/ncurses-6.0/ncurses/base/lib_initscr.c
+@@ -64,8 +64,15 @@ initscr(void)
+     if (!_nc_globals.init_screen) {
+ 	_nc_globals.init_screen = TRUE;
+ 
++    /*
++     * Get the heck out. I am not interested in what the heck reason
++     * it is that makes you not work.
++     * -- Added by LH_Mouse on 2015-01-08.
++     */
++#ifndef __MINGW32__
+ 	if ((name = getenv("TERM")) == 0
+ 	    || *name == '\0')
++#endif
+ 	    name = "unknown";
+ #ifdef __CYGWIN__
+ 	/*
+diff --git a/ncurses-6.0/ncurses/win32con/win_driver.c b/ncurses-6.0/ncurses/win32con/win_driver.c
+index 78ccfeda..0ffc551a 100644
+--- a/ncurses-6.0/ncurses/win32con/win_driver.c
++++ b/ncurses-6.0/ncurses/win32con/win_driver.c
+@@ -2202,8 +2202,10 @@ InitConsole(void)
+ 	for (i = 0; i < NUMPAIRS; i++)
+ 	    CON.pairs[i] = a;
+ 
+-	CON.inp = GetStdHandle(STD_INPUT_HANDLE);
+-	CON.out = GetStdHandle(STD_OUTPUT_HANDLE);
++	/* LH_Mouse: No... GetStdHandle() is unreliable and fragile.
++	             2017-06-15 */
++	CON.inp = CreateFile(TEXT("CONIN$"), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0) /* GetStdHandle(STD_INPUT_HANDLE) */;
++	CON.out = CreateFile(TEXT("CONOUT$"), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0) /* GetStdHandle(STD_OUTPUT_HANDLE) */;
+ 
+ 	b = AllocConsole();
+ 
