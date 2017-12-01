@@ -33,7 +33,11 @@
 void get_homedir(void)
 {
     if (homedir == NULL) {
+#ifdef _WIN32
+	const char *homenv = getenv("USERPROFILE");
+#else
 	const char *homenv = getenv("HOME");
+#endif
 
 #ifdef HAVE_PWD_H
 	/* When HOME isn't set, or when we're root, get the home directory
