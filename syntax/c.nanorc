@@ -15,7 +15,6 @@ color green "\<(class|namespace|template|public|protected|private|typename|this|
 color brightyellow "\<(for|if|while|do|else|case|default|switch)\>"
 color brightyellow "\<(try|throw|catch|operator|new|delete|(static|dynamic|const|reinterpret)_cast|static_assert|_Static_assert)\>"
 color magenta "\<(goto|continue|break|return)\>"
-color brightcyan "^[[:space:]]*#[[:space:]]*(define|include(_next)?|(un|ifn?)def|endif|el(if|se)|if|warning|error|pragma)"
 color brightmagenta "'([^'\]|(\\["'abfnrtv\\]))'" "'\\(([0-3]?[0-7]{1,2}))'" "'\\x[0-9A-Fa-f]{1,2}'"
 color brightgreen "\<(_Pragma|__has_include|_Generic)\>"
 
@@ -28,6 +27,9 @@ color brightyellow ""([^"]|\\")*"" "<[^[:blank:]=]*>"
 # Multiline strings.  This regex is VERY resource intensive,
 # and sometimes colours things that shouldn't be coloured.
 ###color brightyellow start=""(\\.|[^"])*\\[[:space:]]*$" end="^(\\.|[^"])*""
+
+# Preprocessor directives.
+color brightcyan start="^[[:space:]]*#[[:space:]]*(define|include(_next)?|(un|ifn?)def|endif|el(if|se)|if|warning|error|pragma)\>" end="[^\\]$"
 
 # Comments.
 color brightblue "//.*"
