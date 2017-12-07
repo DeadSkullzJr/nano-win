@@ -6,8 +6,8 @@ comment "//"
 
 # Constants.
 color brightred "\<[A-Z_][0-9A-Z_]+\>"
-# Labels.
-color brightmagenta "^[[:space:]]*[A-Z_a-z]+:[[:space:]]*$"
+# Labels. It colors the colon in `private:` and does not handle all cases reliably.
+###color brightmagenta "^[[:space:]]*[A-Z_a-z]+:[[:space:]]*$"
 
 color green "\<(float|double|bool|true|false|char|int|short|long|sizeof|align(as|of)|decltype|typeid|enum|void|auto|static|const|struct|union|typedef|extern|(un)?signed|inline|constexpr|thread_local|restrict|_Complex|_Bool|_Imaginary|_Atomic|_Thread_local|_Noreturn|_Align(as|of))\>"
 color green "\<((s?size)|ptrdiff|((u_?)?int(8|16|32|64|ptr|max))|wchar|char(16|32))_t\>"
