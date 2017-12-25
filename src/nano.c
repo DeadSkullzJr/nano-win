@@ -26,8 +26,10 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#ifndef _WIN32
 #ifndef NANO_TINY
 #include <sys/ioctl.h>
+#endif
 #endif
 #ifdef ENABLE_UTF8
 #include <langinfo.h>
@@ -670,8 +672,10 @@ void die_save_file(const char *die_filename, struct stat *die_stat)
      * fast as possible. */
     if (die_stat) {
 	IGNORE_CALL_RESULT(chmod(targetname, die_stat->st_mode));
+#ifndef _WIN32
 	IGNORE_CALL_RESULT(chown(targetname, die_stat->st_uid,
 						die_stat->st_gid));
+#endif
     }
 #endif
 
@@ -1116,7 +1120,9 @@ bool scoop_stdin(void)
     bool setup_failed = FALSE;
 	/* Whether setting up the SIGINT handler failed. */
     FILE *stream;
+#ifndef _WIN32
     int thetty;
+#endif
 
     /* Exit from curses mode and put the terminal into its original state. */
     endwin();
@@ -1143,7 +1149,11 @@ bool scoop_stdin(void)
     }
 
     /* Open standard input. */
+#ifndef _WIN32
     stream = fopen("/dev/stdin", "rb");
+#else
+    stream = _fdopen(0, "rb");
+#endif
     if (stream == NULL) {
 	int errnumber = errno;
 
@@ -1158,12 +1168,18 @@ bool scoop_stdin(void)
     read_file(stream, 0, "stdin", TRUE, FALSE);
     openfile->edittop = openfile->fileage;
 
+#ifndef _WIN32
     /* Reconnect the tty as the input source. */
     thetty = open("/dev/tty", O_RDONLY);
     if (!thetty)
 	die(_("Couldn't reopen stdin from keyboard, sorry\n"));
     dup2(thetty, 0);
     close(thetty);
+#else
+    stream = freopen("CONIN$", "r", stdin);
+    if (!stream)
+	die(_("Couldn't reopen stdin from keyboard, sorry\n"));
+#endif
 
     /* If things went well, store the current state of the terminal. */
     if (!input_was_aborted)
@@ -1200,10 +1216,12 @@ void signal_init(void)
 #endif
     sigaction(SIGTERM, &act, NULL);
 
+#ifdef SIGWINCH
 #ifndef NANO_TINY
     /* Trap SIGWINCH because we want to handle window resizes. */
     act.sa_handler = handle_sigwinch;
     sigaction(SIGWINCH, &act, NULL);
+#endif
 #endif
 
     if (ISSET(SUSPEND)) {
@@ -1236,6 +1254,7 @@ RETSIGTYPE handle_hupterm(int signal)
 /* Handler for SIGTSTP (suspend). */
 RETSIGTYPE do_suspend(int signal)
 {
+#ifndef _WIN32
 #ifdef ENABLE_MOUSE
     disable_mouse_support();
 #endif
@@ -1254,6 +1273,7 @@ RETSIGTYPE do_suspend(int signal)
 #ifdef SIGSTOP
     /* Do what mutt does: send ourselves a SIGSTOP. */
     kill(0, SIGSTOP);
+#endif
 #endif
 }
 
@@ -1298,6 +1318,7 @@ RETSIGTYPE handle_sigwinch(int signal)
 /* Reinitialize and redraw the screen completely. */
 void regenerate_screen(void)
 {
+#ifndef _WIN32
     const char *tty = ttyname(0);
     int fd, result = 0;
     struct winsize win;
@@ -1322,6 +1343,7 @@ void regenerate_screen(void)
 #ifdef REDEFINING_MACROS_OK
     COLS = win.ws_col;
     LINES = win.ws_row;
+#endif
 #endif
     editwincols = COLS - margin;
 
@@ -1353,11 +1375,13 @@ void regenerate_screen(void)
  * unblock SIGWINCH so any pending ones can be dealt with. */
 void allow_sigwinch(bool allow)
 {
+#ifndef _WIN32
     sigset_t winch;
 
     sigemptyset(&winch);
     sigaddset(&winch, SIGWINCH);
     sigprocmask(allow ? SIG_UNBLOCK : SIG_BLOCK, &winch, NULL);
+#endif
 }
 
 /* Handle the global toggle specified in flag. */
@@ -1981,10 +2005,12 @@ int main(int argc, char **argv)
     /* Back up the terminal settings so that they can be restored. */
     tcgetattr(0, &oldterm);
 
+#ifndef _WIN32
     /* Get the state of standard input and ensure it uses blocking mode. */
     stdin_flags = fcntl(0, F_GETFL, 0);
     if (stdin_flags != -1)
 	fcntl(0, F_SETFL, stdin_flags & ~O_NONBLOCK);
+#endif
 
 #ifdef ENABLE_UTF8
     /* If setting the locale is successful and it uses UTF-8, we need

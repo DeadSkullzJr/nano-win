@@ -1232,7 +1232,16 @@ void do_rcfiles(void)
 {
     const char *xdgconfdir;
 
+#ifdef _WIN32
+	const char *allusers = getenv("ALLUSERSPROFILE");
+	if(!allusers){
+		allusers = "C:/Windows";
+	}
+	nanorc = mallocstrncpy(nanorc, allusers, strlen(allusers) + 8);
+	strcat(nanorc, "/nanorc");
+#else
     nanorc = mallocstrcpy(nanorc, SYSCONFDIR "/nanorc");
+#endif
 
     /* Process the system-wide nanorc. */
     parse_one_nanorc();

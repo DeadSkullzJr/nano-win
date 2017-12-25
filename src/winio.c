@@ -33,6 +33,10 @@
 #else
 #define BRANDING PACKAGE_STRING
 #endif
+/* LH_Mouse: Add for GetAsyncKeyState() on 2015-04-18. */
+#ifdef _WIN32
+#	include <windows.h>
+#endif
 
 static int *key_buffer = NULL;
 	/* The keystroke buffer, containing all the keystrokes we
@@ -217,11 +221,23 @@ void get_key_buffer(WINDOW *win)
 
     curs_set(0);
 
+#ifdef _WIN32
+	/* LH_Mouse: Prepend an escape if either Alt key is down. 2015-04-18. */
+	if(GetAsyncKeyState(VK_MENU) < 0){
+		key_buffer_len = 2;
+		key_buffer = (int *)nmalloc(sizeof(int) * 2);
+		key_buffer[0] = ESC_CODE;
+		key_buffer[1] = input;
+	} else {
+#endif
     /* Increment the length of the keystroke buffer, and save the value
      * of the keystroke at the end of it. */
     key_buffer_len++;
     key_buffer = (int *)nmalloc(sizeof(int));
     key_buffer[0] = input;
+#ifdef _WIN32
+	}
+#endif
 
 #ifndef NANO_TINY
     /* If we got SIGWINCH, get out immediately since the win argument is
@@ -244,12 +260,25 @@ void get_key_buffer(WINDOW *win)
 	if (input == ERR)
 	    break;
 
+#ifdef _WIN32
+	/* LH_Mouse: Same as above. 2015-04-18. */
+	if(GetAsyncKeyState(VK_MENU) < 0){
+		key_buffer_len += 2;
+		key_buffer = (int *)nrealloc(key_buffer, key_buffer_len *
+			sizeof(int));
+		key_buffer[key_buffer_len - 2] = ESC_CODE;
+		key_buffer[key_buffer_len - 1] = input;
+	} else {
+#endif
 	/* Otherwise, increment the length of the keystroke buffer, and
 	 * save the value of the keystroke at the end of it. */
 	key_buffer_len++;
 	key_buffer = (int *)nrealloc(key_buffer, key_buffer_len * sizeof(int));
 	key_buffer[key_buffer_len - 1] = input;
     }
+#ifdef _WIN32
+	}
+#endif
 
     /* Restore waiting mode if it was on. */
     if (waiting_mode)
@@ -608,12 +637,26 @@ int parse_kbinput(WINDOW *win)
     }
 #endif
 
+#if defined(_WIN32) || defined(__linux__)
 #ifdef __linux__
     /* When not running under X, check for the bare arrow keys whether
      * Shift/Ctrl/Alt are being held together with them. */
     unsigned char modifiers = 6;
 
     if (console && ioctl(0, TIOCLINUX, &modifiers) >= 0) {
+#else /* __linux__ */
+    unsigned char modifiers = 0;
+    if (GetAsyncKeyState(VK_SHIFT) < 0) {
+        modifiers |= 0x01;
+    }
+    if (GetAsyncKeyState(VK_CONTROL) < 0) {
+        modifiers |= 0x04;
+    }
+    if (GetAsyncKeyState(VK_MENU) < 0) {
+        modifiers |= 0x08;
+    }
+    if (TRUE) {
+#endif /* __linux__ */
 #ifndef NANO_TINY
 	/* Is Shift being held? */
 	if (modifiers & 0x01) {
@@ -652,7 +695,7 @@ int parse_kbinput(WINDOW *win)
 	}
 #endif
     }
-#endif /* __linux__ */
+#endif /* defined(_WIN32) || defined(__linux__) */
 
 #ifndef NANO_TINY
     /* When <Tab> is pressed while the mark is on, do an indent. */

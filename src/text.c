@@ -28,12 +28,17 @@
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
+#include <errno.h>
 
 #ifndef NANO_TINY
+#ifndef _WIN32
 static pid_t pid = -1;
 	/* The PID of the forked process in execute_command(), for use
 	 * with the cancel_command() signal handler. */
+#endif
 #endif
 #ifdef ENABLE_WRAPPING
 static bool prepend_wrap = FALSE;
@@ -1077,13 +1082,19 @@ void do_enter(void)
  * execute_command(). */
 RETSIGTYPE cancel_command(int signal)
 {
+#ifndef _WIN32
     if (kill(pid, SIGKILL) == -1)
 	nperror("kill");
+#endif
 }
 
 /* Execute command in a shell.  Return TRUE on success. */
 bool execute_command(const char *command)
 {
+#ifdef _WIN32
+	statusbar(_("Unsupported"));
+	return FALSE;
+#else
     int fd[2];
     FILE *f;
     const char *shellenv;
@@ -1163,6 +1174,7 @@ bool execute_command(const char *command)
     terminal_init();
 
     return TRUE;
+#endif
 }
 
 /* Discard undo items that are newer than the given one, or all if NULL.
@@ -2658,6 +2670,7 @@ bool do_int_spell_fix(const char *word)
  * termination, and the error string otherwise. */
 const char *do_int_speller(const char *tempfile_name)
 {
+#ifndef _WIN32
     char *read_buff, *read_buff_ptr, *read_buff_word;
     size_t pipe_buff_size, read_buff_size, read_buff_read, bytesread;
     int spell_fd[2], sort_fd[2], uniq_fd[2], tempfile_fd = -1;
@@ -2676,7 +2689,11 @@ const char *do_int_speller(const char *tempfile_name)
 	close(spell_fd[0]);
 
 	/* Replace the standard input with the temp file. */
-	if ((tempfile_fd = open(tempfile_name, O_RDONLY)) == -1)
+	if ((tempfile_fd = open(tempfile_name, O_RDONLY
+#ifdef _WIN32
+		| _O_BINARY
+#endif
+	)) == -1)
 	    goto close_pipes_and_exit;
 
 	if (dup2(tempfile_fd, STDIN_FILENO) != STDIN_FILENO)
@@ -2829,12 +2846,15 @@ const char *do_int_speller(const char *tempfile_name)
     close(uniq_fd[0]);
     close(uniq_fd[1]);
     exit(1);
+#endif
+    return NULL;
 }
 
 /* External (alternate) spell checking.  Return NULL for normal
  * termination, and the error string otherwise. */
 const char *do_alt_speller(char *tempfile_name)
 {
+#ifndef _WIN32
     int alt_spell_status;
     size_t current_x_save = openfile->current_x;
     size_t pww_save = openfile->placewewant;
@@ -2951,6 +2971,7 @@ const char *do_alt_speller(char *tempfile_name)
     allow_sigwinch(TRUE);
 #endif
 
+#endif
     return NULL;
 }
 
@@ -3017,6 +3038,7 @@ void do_spell(void)
  * termination, and the error string otherwise. */
 void do_linter(void)
 {
+#ifndef _WIN32
     char *read_buff, *read_buff_ptr, *read_buff_word, *ptr, *lintcopy;
     size_t pipe_buff_size, read_buff_size, read_buff_read, bytesread;
     size_t parsesuccess = 0;
@@ -3335,6 +3357,7 @@ void do_linter(void)
 	free(tmplint->filename);
 	free(tmplint);
     }
+#endif
 }
 
 #ifdef ENABLE_SPELLER
